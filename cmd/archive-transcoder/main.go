@@ -36,7 +36,15 @@ func run() error {
 		if outDir == "" {
 			return errors.New("--output-dir/-o must be set")
 		}
-		if filepath.Dir(outDir+"/") == filepath.Dir(searchDir+"/") {
+		ods, err := os.Stat(outDir)
+		if err != nil {
+			return err
+		}
+		sds, err := os.Stat(searchDir)
+		if err != nil {
+			return err
+		}
+		if os.SameFile(ods, sds) {
 			return errors.New("--output-dir/-o must be different from --search-dir/-s")
 		}
 	} else {
