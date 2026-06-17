@@ -66,7 +66,7 @@ func run() error {
 		}
 
 		relPath, _ := filepath.Rel(searchDir, path)
-		if !recurse && strings.Count(relPath, "/") > 1 {
+		if !recurse && strings.Count(relPath, "/") > 0 {
 			return nil
 		}
 		// Walk will catch new archives if they turn up under the search dir
