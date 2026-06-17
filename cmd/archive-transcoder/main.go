@@ -83,7 +83,7 @@ func run() error {
 
 			var outArchive string
 			if inPlace {
-				tf, err := os.CreateTemp(searchDir, filepath.Base(path))
+				tf, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
 				if err != nil {
 					return err
 				}
@@ -93,7 +93,7 @@ func run() error {
 				outArchive = tf.Name()
 				defer os.Remove(outArchive) // gone if successful
 			} else {
-				outArchive = filepath.Join(outDir, path)
+				outArchive = filepath.Join(outDir, relPath)
 			}
 
 			if err := processArchive(enc, outArchive, path); err != nil {
