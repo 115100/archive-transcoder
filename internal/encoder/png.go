@@ -10,7 +10,7 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/mandykoh/prism/meta/autometa"
+	"github.com/mandykoh/prism/meta/pngmeta"
 )
 
 func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrameSettings) error {
@@ -31,7 +31,7 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 		return errors.New("JxlEncoderSetBasicInfo failed")
 	}
 
-	md, _, err := autometa.Load(r)
+	md, _, err := pngmeta.Load(r)
 	if err != nil {
 		return err
 	}
