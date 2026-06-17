@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	bufSize = (C.size_t)(C.sizeof_uint8_t << 20)
+	bufSize = C.size_t(C.sizeof_uint8_t << 20)
 )
 
 type Encoder struct {
@@ -69,7 +69,7 @@ func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
 		avail_bytes := bufSize
 		status = C.JxlEncoderProcessOutput(enc.jxlEnc, &next_out, &avail_bytes)
 
-		v = append(v, C.GoBytes(buf, (C.int)(bufSize-avail_bytes))...)
+		v = append(v, C.GoBytes(buf, C.int(bufSize-avail_bytes))...)
 	}
 	if status != C.JXL_ENC_SUCCESS {
 		return nil, errors.New("JxlEncodeProcessOutput failed")

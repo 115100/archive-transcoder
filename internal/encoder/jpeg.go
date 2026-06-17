@@ -24,7 +24,7 @@ func (enc *Encoder) jpegFrame(r io.Reader, fs *C.JxlEncoderFrameSettings) error 
 	if C.JxlEncoderAddJPEGFrame(
 		fs,
 		(*C.uint8_t)(buffer),
-		(C.size_t)(len(v)),
+		C.size_t(len(v)),
 	) != C.JXL_ENC_SUCCESS {
 		return errors.New("JxlEncoderAddJPEGFrame failed")
 	}

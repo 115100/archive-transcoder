@@ -16,8 +16,8 @@ import (
 func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrameSettings) error {
 	bi := new(C.JxlBasicInfo)
 	C.JxlEncoderInitBasicInfo(bi)
-	bi.xsize = (C.uint32_t)(img.Bounds().Dx())
-	bi.ysize = (C.uint32_t)(img.Bounds().Dy())
+	bi.xsize = C.uint32_t(img.Bounds().Dx())
+	bi.ysize = C.uint32_t(img.Bounds().Dy())
 	bi.uses_original_profile = C.JXL_TRUE
 	pf := new(C.JxlPixelFormat)
 
@@ -43,7 +43,7 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 		buffer := C.CBytes(icc)
 		defer C.free(buffer)
 
-		if C.JxlEncoderSetICCProfile(enc.jxlEnc, (*C.uint8_t)(buffer), (C.size_t)(len(icc))) != C.JXL_ENC_SUCCESS {
+		if C.JxlEncoderSetICCProfile(enc.jxlEnc, (*C.uint8_t)(buffer), C.size_t(len(icc))) != C.JXL_ENC_SUCCESS {
 			return errors.New("JxlEncoderSetICCProfile failed")
 		}
 	} else {
@@ -62,7 +62,7 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 		}
 	}
 
-	if C.JxlEncoderAddImageFrame(fs, pf, buffer, (C.size_t)(n)) != C.JXL_ENC_SUCCESS {
+	if C.JxlEncoderAddImageFrame(fs, pf, buffer, C.size_t(n)) != C.JXL_ENC_SUCCESS {
 		return errors.New("JxlEncoderAddImageFrame failed")
 	}
 	return nil
