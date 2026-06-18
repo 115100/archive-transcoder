@@ -25,32 +25,25 @@ func main() {
 
 func run() error {
 	var outDir, searchDir string
-	var inPlace, recurse bool
+	var recurse bool
 	pflag.StringVarP(&outDir, "output-dir", "o", "", "output directory")
 	pflag.StringVarP(&searchDir, "search-dir", "s", ".", "search directory")
-	pflag.BoolVarP(&inPlace, "in-place", "i", false, "replace source directory with new archive")
 	pflag.BoolVarP(&recurse, "recurse", "r", false, "recurse into search directory")
 	pflag.Parse()
 
-	if !inPlace {
-		if outDir == "" {
-			return errors.New("--output-dir/-o must be set")
-		}
-		ods, err := os.Stat(outDir)
-		if err != nil {
-			return err
-		}
-		sds, err := os.Stat(searchDir)
-		if err != nil {
-			return err
-		}
-		if os.SameFile(ods, sds) {
-			return errors.New("--output-dir/-o must be different from --search-dir/-s")
-		}
-	} else {
-		if outDir != "" {
-			return errors.New("--output-dir/-o shouldn't be set with --in-place/-i")
-		}
+	if outDir == "" {
+		return errors.New("--output-dir/-o must be set")
+	}
+	ods, err := os.Stat(outDir)
+	if err != nil {
+		return err
+	}
+	sds, err := os.Stat(searchDir)
+	if err != nil {
+		return err
+	}
+	if os.SameFile(ods, sds) {
+		return errors.New("--output-dir/-o must be different from --search-dir/-s")
 	}
 
 	enc, err := encoder.NewEncoder()
@@ -81,31 +74,9 @@ func run() error {
 				slog.String("path", path),
 			)
 
-			var outArchive string
-			if inPlace {
-				tf, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
-				if err != nil {
-					return err
-				}
-				if err := tf.Close(); err != nil {
-					return err
-				}
-				outArchive = tf.Name()
-				defer os.Remove(outArchive) // gone if successful
-			} else {
-				outArchive = filepath.Join(outDir, relPath)
-			}
-
+			outArchive := filepath.Join(outDir, relPath)
 			if err := processArchive(enc, outArchive, path); err != nil {
 				return err
-			}
-			if inPlace {
-				if err := os.Rename(path, path+".bak"); err != nil {
-					return err
-				}
-				if err := os.Rename(outArchive, path); err != nil {
-					return err
-				}
 			}
 		}
 		return nil
