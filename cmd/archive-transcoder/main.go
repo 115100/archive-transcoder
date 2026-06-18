@@ -153,12 +153,18 @@ func processEntry(zw *zip.Writer, enc *encoder.Encoder, f *zip.File) error {
 		}
 
 		v, err := enc.EncodeImage(bytes.NewReader(rawImg))
+		zn := strings.TrimSuffix(f.Name, filepath.Ext(f.Name)) + ".jxl"
 		if err != nil {
-			return fmt.Errorf("failed to EncodeImage \"%s\": %w", f.Name, err)
+			slog.Warn(
+				"failed to EncodeImage so writing original",
+				slog.String("filename", f.Name),
+			)
+			v = rawImg
+			zn = f.Name
 		}
 
 		zc, err := zw.CreateHeader(&zip.FileHeader{
-			Name:   strings.TrimSuffix(f.Name, filepath.Ext(f.Name)) + ".jxl",
+			Name:   zn,
 			Method: f.Method,
 		})
 		if err != nil {
