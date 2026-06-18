@@ -8,6 +8,7 @@ package encoder
 import "C"
 import (
 	"errors"
+	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -30,12 +31,12 @@ func NewEncoder() (*Encoder, error) {
 
 func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
 	if err := enc.initOrResetEncoder(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initOrResetEncoder: %w", err)
 	}
 
 	img, format, err := image.Decode(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to Decode image: %w", err)
 	}
 
 	fs := C.JxlEncoderFrameSettingsCreate(enc.jxlEnc, nil)
@@ -44,17 +45,17 @@ func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
 	}
 
 	if _, err := r.Seek(0, 0); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to seek: %w", err)
 	}
 
 	switch format {
 	case "jpeg", "jpg":
 		if err := enc.jpegFrame(r, fs); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to process jpegFrame: %w", err)
 		}
 	case "png":
 		if err := enc.pngFrame(r, img, fs); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to process pngFrame: %w", err)
 		}
 	}
 	C.JxlEncoderCloseInput(enc.jxlEnc)

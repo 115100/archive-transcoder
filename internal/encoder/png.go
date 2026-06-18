@@ -24,7 +24,7 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 
 	buffer, n, err := populateInfo(bi, pf, img)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to populateInfo: %w", err)
 	}
 	defer C.free(buffer)
 

@@ -154,7 +154,7 @@ func processEntry(zw *zip.Writer, enc *encoder.Encoder, f *zip.File) error {
 
 		v, err := enc.EncodeImage(bytes.NewReader(rawImg))
 		if err != nil {
-			return fmt.Errorf("failed to EncodeImage: %w", err)
+			return fmt.Errorf("failed to EncodeImage \"%s\": %w", f.Name, err)
 		}
 
 		zc, err := zw.CreateHeader(&zip.FileHeader{
