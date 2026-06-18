@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +54,8 @@ func run() error {
 	defer enc.Close()
 
 	start := time.Now()
-	return filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
+	var startSize, endSize int64
+	if err := filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("failed to Walk: %w", err)
 		}
@@ -69,6 +71,7 @@ func run() error {
 
 		switch filepath.Ext(path) {
 		case ".zip", ".cbz":
+			startSize += info.Size()
 			slog.Info(
 				"processing archive",
 				slog.String("path", path),
@@ -78,9 +81,29 @@ func run() error {
 			if err := processArchive(enc, outArchive, path); err != nil {
 				return err
 			}
+			ofi, err := os.Stat(outArchive)
+			if err != nil {
+				return err
+			}
+			endSize += ofi.Size()
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	slog.Info(
+		"finished processing directory",
+		slog.String("search_dir", searchDir),
+		slog.Int("start_size_mebibytes", toMiB(startSize)),
+		slog.Int("end_size_mebibytes", toMiB(endSize)),
+		slog.Int("saved_mebibytes", toMiB(startSize-endSize)),
+	)
+	return nil
+}
+
+func toMiB(nb int64) int {
+	return int(float64(nb) / math.Pow(2, 20))
 }
 
 func processArchive(enc *encoder.Encoder, outArchive, archive string) error {
