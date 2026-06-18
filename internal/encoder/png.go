@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"log/slog"
 	"unsafe"
 
 	"github.com/mandykoh/prism/meta/pngmeta"
@@ -32,20 +31,15 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 		return errors.New("JxlEncoderSetBasicInfo failed")
 	}
 
-	var icc []byte
 	md, _, err := pngmeta.Load(r)
 	if err != nil {
-		slog.Warn(
-			"failed to load image metadata",
-			slog.Any("err", err),
-		)
-	} else {
-		icc, err = md.ICCProfileData()
-		if err != nil {
-			return fmt.Errorf("failed to load ICC profile data: %w", err)
-		}
+		return err
 	}
-	if len(icc) > 0 {
+	icc, err := md.ICCProfileData()
+	if err != nil {
+		return err
+	}
+	if icc != nil {
 		buffer := C.CBytes(icc)
 		defer C.free(buffer)
 
