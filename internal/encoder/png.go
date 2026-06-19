@@ -4,16 +4,16 @@ package encoder
 // #include <stdlib.h>
 import "C"
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
-	"io"
 	"unsafe"
 
 	"github.com/mandykoh/prism/meta/pngmeta"
 )
 
-func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrameSettings) error {
+func (enc *Encoder) pngFrame(rawImg []byte, img image.Image, fs *C.JxlEncoderFrameSettings) error {
 	bi := new(C.JxlBasicInfo)
 	C.JxlEncoderInitBasicInfo(bi)
 	bi.xsize = C.uint32_t(img.Bounds().Dx())
@@ -31,7 +31,7 @@ func (enc *Encoder) pngFrame(r io.Reader, img image.Image, fs *C.JxlEncoderFrame
 		return errors.New("JxlEncoderSetBasicInfo failed")
 	}
 
-	md, _, err := pngmeta.Load(r)
+	md, _, err := pngmeta.Load(bytes.NewReader(rawImg))
 	if err != nil {
 		return err
 	}

@@ -7,12 +7,12 @@ package encoder
 // #include <stdlib.h>
 import "C"
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
-	"io"
 	"sync"
 	"unsafe"
 )
@@ -34,12 +34,12 @@ func NewEncoder(threads int) (*Encoder, error) {
 	}, nil
 }
 
-func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
+func (enc *Encoder) EncodeImage(rawImg []byte) ([]byte, error) {
 	if err := enc.initOrResetEncoder(); err != nil {
 		return nil, fmt.Errorf("failed to initOrResetEncoder: %w", err)
 	}
 
-	img, format, err := image.Decode(r)
+	img, format, err := image.Decode(bytes.NewReader(rawImg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to Decode image: %w", err)
 	}
@@ -49,17 +49,13 @@ func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
 		return nil, errors.New("JxlEncoderSetFrameLossless failed")
 	}
 
-	if _, err := r.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("failed to seek: %w", err)
-	}
-
 	switch format {
 	case "jpeg", "jpg":
-		if err := enc.jpegFrame(r, fs); err != nil {
+		if err := enc.jpegFrame(rawImg, fs); err != nil {
 			return nil, fmt.Errorf("failed to process jpegFrame: %w", err)
 		}
 	case "png":
-		if err := enc.pngFrame(r, img, fs); err != nil {
+		if err := enc.pngFrame(rawImg, img, fs); err != nil {
 			return nil, fmt.Errorf("failed to process pngFrame: %w", err)
 		}
 	}

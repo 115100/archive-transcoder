@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -155,7 +154,7 @@ func processEntry(zw *zip.Writer, enc *encoder.Encoder, f *zip.File) error {
 			return fmt.Errorf("failed to ReadAll on image: %w", err)
 		}
 
-		v, err := enc.EncodeImage(bytes.NewReader(rawImg))
+		v, err := enc.EncodeImage(rawImg)
 		fh := &zip.FileHeader{
 			Name:     strings.TrimSuffix(f.Name, filepath.Ext(f.Name)) + ".jxl",
 			Comment:  f.Comment,
