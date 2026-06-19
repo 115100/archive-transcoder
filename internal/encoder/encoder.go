@@ -14,6 +14,7 @@ import (
 	_ "image/png"
 	"io"
 	"sync"
+	"unsafe"
 )
 
 var (
@@ -22,11 +23,15 @@ var (
 
 type Encoder struct {
 	jxlEnc *C.JxlEncoder
+	runner unsafe.Pointer
 	once   *sync.Once
 }
 
 func NewEncoder() (*Encoder, error) {
-	return &Encoder{once: new(sync.Once)}, nil
+	return &Encoder{
+		runner: C.JxlThreadParallelRunnerCreate(nil, 24),
+		once:   new(sync.Once),
+	}, nil
 }
 
 func (enc *Encoder) EncodeImage(r io.ReadSeeker) ([]byte, error) {
@@ -84,6 +89,7 @@ func (enc *Encoder) Close() error {
 		if enc.jxlEnc != nil {
 			C.JxlEncoderDestroy(enc.jxlEnc)
 		}
+		C.JxlThreadParallelRunnerDestroy(enc.runner)
 	})
 	return err
 }
@@ -100,7 +106,7 @@ func (enc *Encoder) initOrResetEncoder() error {
 	if C.JxlEncoderSetParallelRunner(
 		enc.jxlEnc,
 		(*[0]byte)(C.JxlThreadParallelRunner),
-		C.JxlThreadParallelRunnerCreate(nil, 24),
+		enc.runner,
 	) != C.JXL_ENC_SUCCESS {
 		return errors.New("JxlEncoderSetParallelRunner failed")
 	}
