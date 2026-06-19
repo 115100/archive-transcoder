@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"math"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/115100/archive-transcoder/internal/encoder"
@@ -51,6 +54,14 @@ func run() error {
 		return errors.New("--output-dir/-o must be different from --search-dir/-s")
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		slog.Warn("received signal; cleaning up...")
+		stop()
+	}()
+
 	enc, err := encoder.NewEncoder(threads)
 	if err != nil {
 		return err
@@ -61,7 +72,16 @@ func run() error {
 
 	start := time.Now()
 	var startSize, endSize int64
-	if err := filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
+	defer func() {
+		slog.Info(
+			"finished processing directory",
+			slog.String("search_dir", searchDir),
+			slog.Int("start_size_mebibytes", toMiB(startSize)),
+			slog.Int("end_size_mebibytes", toMiB(endSize)),
+			slog.Int("saved_mebibytes", toMiB(startSize-endSize)),
+		)
+	}()
+	return filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("failed to walk directory: %w", err)
 		}
@@ -77,35 +97,19 @@ func run() error {
 
 		switch filepath.Ext(path) {
 		case ".zip", ".cbz":
-			startSize += info.Size()
-			slog.Info(
-				"processing archive",
-				slog.String("path", path),
-			)
-
 			outArchive := filepath.Join(outDir, relPath)
-			if err := handler.ProcessArchive(outArchive, path); err != nil {
+			if err := handler.ProcessArchive(ctx, outArchive, path); err != nil {
 				return err
 			}
 			ofi, err := os.Stat(outArchive)
 			if err != nil {
 				return err
 			}
+			startSize += info.Size()
 			endSize += ofi.Size()
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-
-	slog.Info(
-		"finished processing directory",
-		slog.String("search_dir", searchDir),
-		slog.Int("start_size_mebibytes", toMiB(startSize)),
-		slog.Int("end_size_mebibytes", toMiB(endSize)),
-		slog.Int("saved_mebibytes", toMiB(startSize-endSize)),
-	)
-	return nil
+	})
 }
 
 func toMiB(nb int64) int {

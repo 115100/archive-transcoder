@@ -2,6 +2,7 @@ package handler
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +18,17 @@ type Handler struct {
 	Encoder *encoder.Encoder
 }
 
-func (h *Handler) ProcessArchive(outArchive, archive string) error {
+func (h *Handler) ProcessArchive(ctx context.Context, outArchive, archive string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	slog.Info(
+		"processing archive",
+		slog.String("path", archive),
+	)
+
 	r, err := zip.OpenReader(archive)
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %w", archive, err)
