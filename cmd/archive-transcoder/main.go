@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -27,9 +28,11 @@ func main() {
 func run() error {
 	var outDir, searchDir string
 	var recurse bool
+	var threads int
 	pflag.StringVarP(&outDir, "output-dir", "o", "", "output directory")
 	pflag.StringVarP(&searchDir, "search-dir", "s", ".", "search directory")
 	pflag.BoolVarP(&recurse, "recurse", "r", false, "recurse into search directory")
+	pflag.IntVarP(&threads, "threads", "t", runtime.NumCPU(), "number of encoding threads")
 	pflag.Parse()
 
 	if outDir == "" {
@@ -47,7 +50,7 @@ func run() error {
 		return errors.New("--output-dir/-o must be different from --search-dir/-s")
 	}
 
-	enc, err := encoder.NewEncoder()
+	enc, err := encoder.NewEncoder(threads)
 	if err != nil {
 		return err
 	}
@@ -157,6 +160,7 @@ func processEntry(zw *zip.Writer, enc *encoder.Encoder, f *zip.File) error {
 		if err != nil {
 			slog.Warn(
 				"failed to EncodeImage so writing original",
+				slog.Any("err", err),
 				slog.String("filename", f.Name),
 			)
 			v = rawImg

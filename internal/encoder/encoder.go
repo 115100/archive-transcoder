@@ -27,9 +27,9 @@ type Encoder struct {
 	once   *sync.Once
 }
 
-func NewEncoder() (*Encoder, error) {
+func NewEncoder(threads int) (*Encoder, error) {
 	return &Encoder{
-		runner: C.JxlThreadParallelRunnerCreate(nil, 24),
+		runner: C.JxlThreadParallelRunnerCreate(nil, C.size_t(threads)),
 		once:   new(sync.Once),
 	}, nil
 }
