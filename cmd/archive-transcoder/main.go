@@ -119,6 +119,17 @@ func processArchive(enc *encoder.Encoder, outArchive, archive string) error {
 		return fmt.Errorf("failed to MkdirAll: %w", err)
 	}
 
+	var alreadyProcessed bool
+	for _, f := range r.File {
+		if filepath.Ext(f.Name) == ".jxl" {
+			alreadyProcessed = true
+		}
+	}
+	if alreadyProcessed {
+		slog.Info("hardlinking already-processed file", slog.String("path", archive))
+		return os.Link(archive, outArchive)
+	}
+
 	w, err := os.Create(outArchive)
 	if err != nil {
 		return fmt.Errorf("failed to create output archive: %w", err)
