@@ -78,7 +78,7 @@ func run() error {
 			slog.String("search_dir", searchDir),
 			slog.Int("start_size_mebibytes", toMiB(startSize)),
 			slog.Int("end_size_mebibytes", toMiB(endSize)),
-			slog.Int("saved_mebibytes", toMiB(startSize-endSize)),
+			slog.Float64("size_ratio", float64(endSize)/float64(startSize)),
 		)
 	}()
 	return filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
