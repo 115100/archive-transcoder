@@ -1,10 +1,8 @@
 package main
 
 import (
-	"archive/zip"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"math"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	"github.com/115100/archive-transcoder/internal/encoder"
+	"github.com/115100/archive-transcoder/internal/handler"
 	"github.com/spf13/pflag"
 )
 
@@ -37,6 +36,9 @@ func run() error {
 	if outDir == "" {
 		return errors.New("--output-dir/-o must be set")
 	}
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return err
+	}
 	ods, err := os.Stat(outDir)
 	if err != nil {
 		return err
@@ -55,11 +57,13 @@ func run() error {
 	}
 	defer enc.Close()
 
+	handler := &handler.Handler{Encoder: enc}
+
 	start := time.Now()
 	var startSize, endSize int64
 	if err := filepath.Walk(searchDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("failed to Walk: %w", err)
+			return fmt.Errorf("failed to walk directory: %w", err)
 		}
 
 		relPath, _ := filepath.Rel(searchDir, path)
@@ -80,7 +84,7 @@ func run() error {
 			)
 
 			outArchive := filepath.Join(outDir, relPath)
-			if err := processArchive(enc, outArchive, path); err != nil {
+			if err := handler.ProcessArchive(outArchive, path); err != nil {
 				return err
 			}
 			ofi, err := os.Stat(outArchive)
@@ -106,103 +110,4 @@ func run() error {
 
 func toMiB(nb int64) int {
 	return int(float64(nb) / math.Pow(2, 20))
-}
-
-func processArchive(enc *encoder.Encoder, outArchive, archive string) error {
-	r, err := zip.OpenReader(archive)
-	if err != nil {
-		return fmt.Errorf("failed to OpenReader: %w", err)
-	}
-	defer r.Close()
-
-	if err := os.MkdirAll(filepath.Dir(outArchive), 0755); err != nil {
-		return fmt.Errorf("failed to MkdirAll: %w", err)
-	}
-
-	var alreadyProcessed bool
-	for _, f := range r.File {
-		if filepath.Ext(f.Name) == ".jxl" {
-			alreadyProcessed = true
-		}
-	}
-	if alreadyProcessed {
-		slog.Info("hardlinking already-processed file", slog.String("path", archive))
-		return os.Link(archive, outArchive)
-	}
-
-	w, err := os.Create(outArchive)
-	if err != nil {
-		return fmt.Errorf("failed to create output archive: %w", err)
-	}
-	defer w.Close()
-	zw := zip.NewWriter(w)
-	defer zw.Close()
-
-	for _, f := range r.File {
-		if err := processEntry(zw, enc, f); err != nil {
-			return fmt.Errorf("failed to processEntry: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func processEntry(zw *zip.Writer, enc *encoder.Encoder, f *zip.File) error {
-	if f.FileInfo().IsDir() {
-		return nil
-	}
-
-	rc, err := f.Open()
-	if err != nil {
-		return fmt.Errorf("failed to Open zip entry: %w", err)
-	}
-	defer rc.Close()
-
-	switch filepath.Ext(f.Name) {
-	case ".jpeg", ".jpg", ".png":
-		rawImg, err := io.ReadAll(rc)
-		if err != nil {
-			return fmt.Errorf("failed to ReadAll on image: %w", err)
-		}
-
-		v, err := enc.EncodeImage(rawImg)
-		fh := &zip.FileHeader{
-			Name:     strings.TrimSuffix(f.Name, filepath.Ext(f.Name)) + ".jxl",
-			Comment:  f.Comment,
-			Method:   f.Method,
-			Modified: time.Now(),
-		}
-		if err != nil {
-			slog.Warn(
-				"failed to EncodeImage so writing original",
-				slog.Any("err", err),
-				slog.String("filename", f.Name),
-			)
-			v = rawImg
-			fh.Name = f.Name
-			fh.Modified = f.Modified
-		}
-
-		zc, err := zw.CreateHeader(fh)
-		if err != nil {
-			return fmt.Errorf("failed to CreateHeader: %w", err)
-		}
-		if _, err := zc.Write(v); err != nil {
-			return fmt.Errorf("failed to Write: %w", err)
-		}
-	default:
-		zc, err := zw.CreateHeader(&zip.FileHeader{
-			Name:    f.Name,
-			Comment: f.Comment,
-			Method:  f.Method,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to CreateHeader: %w", err)
-		}
-
-		if _, err := io.Copy(zc, rc); err != nil {
-			return fmt.Errorf("failed to Copy: %w", err)
-		}
-	}
-	return nil
 }
